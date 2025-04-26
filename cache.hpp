@@ -14,11 +14,12 @@ struct CacheLine {
     bool dirty;
     uint32_t lru_counter; // For LRU replacement
     std::vector<uint32_t> data; // Data words in the block
+    CacheLine() : state(INVALID), tag(0), dirty(false), lru_counter(0), data() {}
 };
 
 // Cache structure for each core
 struct Cache {
-    std::vector<std::vector<CacheLine> > sets;
+    std::vector<std::vector<CacheLine>> sets;
     uint32_t num_sets;
     uint32_t assoc;
     uint32_t block_size;
@@ -39,6 +40,9 @@ struct Stats {
     uint64_t invalidations;
     uint64_t bus_data_traffic; // In bytes
 };
+
+// Simulated main memory (simplified)
+extern std::vector<uint32_t> memory;
 
 // Parse memory address
 void parseAddress(uint32_t addr, uint32_t set_index_bits, uint32_t block_offset_bits,

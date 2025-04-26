@@ -14,7 +14,7 @@ Stats global_stats;
 uint32_t current_cycle = 0;
 
 // Main simulation loop
-void simulate(const std::vector<std::vector<std::pair<char, uint32_t> > >& traces) {
+void simulate(const std::vector<std::vector<std::pair<char, uint32_t>>>& traces) {
     std::vector<size_t> trace_indices(4, 0);
     bool all_done = false;
 
@@ -64,13 +64,11 @@ int main(int argc, char* argv[]) {
         caches[i].set_index_bits = set_index_bits;
         caches[i].block_offset_bits = block_bits;
         caches[i].tag_bits = 32 - set_index_bits - block_bits;
-        // caches[i].sets.resize(caches[i].num_sets, std::vector<CacheLine>(assoc, CacheLine{INVALID, 0, false, 0}));
-        CacheLine default_line = {INVALID, 0, false, 0, std::vector<uint32_t>()};
-caches[i].sets.resize(caches[i].num_sets, std::vector<CacheLine>(assoc, default_line));
+        caches[i].sets.resize(caches[i].num_sets, std::vector<CacheLine>(assoc, CacheLine()));
     }
 
     // Read trace files
-    std::vector<std::vector<std::pair<char, uint32_t> > > traces(4);
+    std::vector<std::vector<std::pair<char, uint32_t>>> traces(4);
     for (int i = 0; i < 4; ++i) {
         std::string filename = trace_name + "_proc" + std::to_string(i) + ".trace";
         std::ifstream file(filename);
@@ -83,7 +81,11 @@ caches[i].sets.resize(caches[i].num_sets, std::vector<CacheLine>(assoc, default_
             std::istringstream iss(line);
             char op;
             uint32_t addr;
-            iss >> op >> std::hex >> addr;
+            if (!(iss >> op >> std::hex >> addr)) {
+                std::cerr << "Invalid trace entry in " << filename << ": " << line << "\n";
+                return 1;
+            }
+            std::cout << "Core " << i << ": op=" << op << ", addr=0x" << std::hex << addr << "\n";
             traces[i].emplace_back(op, addr);
         }
     }
