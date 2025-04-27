@@ -1,8 +1,10 @@
 #include "bus.hpp"
-#include <algorithm>
+#include <iostream>
 
-// Simulated main memory (simplified)
-std::vector<uint32_t> memory(1 << 24, 0); // 16M words = 64MB
+std::vector<uint32_t> memory(1 << 24, 0);
+std::queue<BusRequest> bus_queue;
+int bus_busy_cycles = 0;
+int current_initiator = -1;
 
 // Process snooping for other caches
 void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bool& supplied, std::vector<uint32_t>& data) {

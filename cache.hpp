@@ -4,20 +4,17 @@
 #include <vector>
 #include <cstdint>
 
-// Cache line states for MESI protocol
 enum MESIState { INVALID, SHARED, EXCLUSIVE, MODIFIED };
 
-// Cache line structure
 struct CacheLine {
     MESIState state;
     uint32_t tag;
     bool dirty;
-    uint32_t lru_counter; // For LRU replacement
-    std::vector<uint32_t> data; // Data words in the block
+    uint32_t lru_counter;
+    std::vector<uint32_t> data;
     CacheLine() : state(INVALID), tag(0), dirty(false), lru_counter(0), data() {}
 };
 
-// Cache structure for each core
 struct Cache {
     std::vector<std::vector<CacheLine>> sets;
     uint32_t num_sets;
@@ -26,19 +23,19 @@ struct Cache {
     uint32_t set_index_bits;
     uint32_t block_offset_bits;
     uint32_t tag_bits;
-    uint64_t read_count;
-    uint64_t write_count;
-    uint64_t miss_count;
-    uint64_t eviction_count;
-    uint64_t writeback_count;
-    uint64_t idle_cycles;
+    uint64_t read_count = 0;
+    uint64_t write_count = 0;
+    uint64_t miss_count = 0;
+    uint64_t eviction_count = 0;
+    uint64_t writeback_count = 0;
+    uint64_t idle_cycles = 0;
+    int stall_cycles = 0; // New field
 };
 
-// Simulation statistics
 struct Stats {
-    uint64_t total_cycles;
-    uint64_t invalidations;
-    uint64_t bus_data_traffic; // In bytes
+    uint64_t total_cycles = 0;
+    uint64_t invalidations = 0;
+    uint64_t bus_data_traffic = 0;
 };
 
 // Simulated main memory (simplified)
