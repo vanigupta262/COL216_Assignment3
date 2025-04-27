@@ -33,13 +33,13 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
                             memory[mem_addr / 4 + j] = line.data[j];
                         }
                         global_stats.bus_data_traffic += cache.block_size;
-                        cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
+                        cache.idle_cycles += 100; // Writeback to memory
+                        line.dirty = false; // Reset dirty bit after writeback
                     }
+                    if (!shared) cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
                     line.state = INVALID;
                     global_stats.invalidations++;
-                    if (line.dirty) {
-                        cache.writeback_count++;
-                    }
+                    cache.writeback_count++;
                 } else {
                     // Read: Supply data if MODIFIED, update states
                     if (line.state == MODIFIED) {
@@ -66,7 +66,7 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
                         data = line.data;
                         supplied = true;
                         global_stats.bus_data_traffic += cache.block_size;
-                        cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
+                        if (!shared) cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
                         shared = true;
                     }
                 }
@@ -88,7 +88,7 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     }
 
     // Evict if necessary
-    if (set[victim_index].state != INVALID) {
+    if (set[victim_index].state == MODIFIED || set[victim_index].state == EXCLUSIVE) {
         cache.eviction_count++;
         if (set[victim_index].dirty && set[victim_index].state == MODIFIED) {
             // Write back to memory
@@ -105,16 +105,16 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     bool shared = false;
     bool supplied = false;
     std::vector<uint32_t> data;
-    snoopBus(core, addr, is_write, shared, supplied, data);
+    snoopBus(core, addr, is_write, shared, supplied, data); // -------------put in victim-addr, not addr
 
     // Fetch block
     cache.miss_count++;
     set[victim_index].tag = tag;
     set[victim_index].dirty = is_write;
-    if (supplied) {
+    if (shared) {
         // Data supplied by another cache
         set[victim_index].data = data;
-        cache.idle_cycles += 2 * (cache.block_size / 4); // Cache-to-cache transfer
+        // cache.idle_cycles += 2 * (cache.block_size / 4); // cycles get updated in snoopBus
     } else {
         // Fetch from memory
         set[victim_index].data.resize(cache.block_size / 4, 0);

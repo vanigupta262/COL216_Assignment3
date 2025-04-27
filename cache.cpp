@@ -69,33 +69,34 @@ void processReference(int core, char op, uint32_t addr) {
               << (hit ? (set[hit_index].state == MODIFIED ? "M" : set[hit_index].state == EXCLUSIVE ? "E" : set[hit_index].state == SHARED ? "S" : "I") : "N/A") << "\n";
 
     if (hit) {
+        cache.idle_cycles += 1;
         if (is_write) {
-            if (set[hit_index].state == MODIFIED) {
+            if (set[hit_index].state == EXCLUSIVE || set[hit_index].state == MODIFIED) {
                 // Write Hit (M): Update value, no state change
-                set[hit_index].dirty = true;
-            } else if (set[hit_index].state == EXCLUSIVE) {
                 // Write Hit (E): Update value, E -> M
                 set[hit_index].dirty = true;
                 set[hit_index].state = MODIFIED;
             } else if (set[hit_index].state == SHARED) {
                 // Write Hit (S): Invalidate others, update value, S -> M
-                bool shared = false;
+                bool shared = true;
                 bool supplied = false;
                 std::vector<uint32_t> data;
                 snoopBus(core, addr, true, shared, supplied, data);
                 set[hit_index].dirty = true;
                 set[hit_index].state = MODIFIED;
+                cache.idle_cycles -= 1; // Cycles come from snooping, so cancelling the unit increment done earlier
             }
         } else {
             // Read Hit (M, E, S): No state change
             // Check if others have it to ensure SHARED state
-            bool shared = false;
-            bool supplied = false;
-            std::vector<uint32_t> data;
-            snoopBus(core, addr, false, shared, supplied, data);
-            if (shared && set[hit_index].state == EXCLUSIVE) {
-                set[hit_index].state = SHARED;
-            }
+            // bool shared = false;
+            // bool supplied = false;
+            // std::vector<uint32_t> data;
+            // snoopBus(core, addr, false, shared, supplied, data);
+            // if (shared && set[hit_index].state == EXCLUSIVE) {
+            //     set[hit_index].state = SHARED;
+            // }
+            // READ HIT -> JUST UPDATE CYCLES BY 1
         }
         updateLRU(set, hit_index);
     } else {
