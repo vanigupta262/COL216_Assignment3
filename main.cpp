@@ -68,7 +68,8 @@ void simulate(const std::vector<std::vector<std::pair<char, uint32_t>>>& traces)
         if (all_done) break;
     }
 
-    global_stats.total_cycles = current_cycle;
+    global_stats.total_cycles = current_cycle + caches[0].idle_cycles + caches[1].idle_cycles +
+                                caches[2].idle_cycles + caches[3].idle_cycles;
 }
 
 int main(int argc, char* argv[]) {
