@@ -9,6 +9,7 @@ struct BusRequest {
     int core;
     uint32_t addr;
     bool is_write;
+    
 };
 
 extern std::vector<Cache> caches;

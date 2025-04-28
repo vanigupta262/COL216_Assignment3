@@ -64,10 +64,13 @@ void simulate(const std::vector<std::vector<std::pair<char, uint32_t>>>& traces)
                     }
                 }
             }
-            
+            if(!bus_queue.empty()){
+                all_done = false;
+            }
         if (all_done) break;
+        
     }
-
+    
     global_stats.total_cycles = current_cycle;
 }
 
