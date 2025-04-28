@@ -36,7 +36,8 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
                         // }
                         global_stats.bus_data_traffic += cache.block_size;
                         // cache.stall_cycles = -1;
-                        // bus_busy_cycles+=100;
+                        bus_busy_cycles+=100;
+                        // bus_queue.push({initiator_core, addr, is_write, true});
                         cache.idle_cycles += 100; // Writeback to memory
                         line.dirty = false; // Reset dirty bit after writeback
                     }
@@ -55,7 +56,8 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
                         //     memory[mem_addr / 4 + j] = line.data[j];
                         // }
                         // cache.stall_cycles = -1;
-                        // bus_busy_cycles+=100;
+                        bus_busy_cycles+=100;
+                        // bus_queue.push({initiator_core, addr, is_write, true});
                         global_stats.bus_data_traffic += cache.block_size;
                         cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
                         line.state = SHARED;
@@ -101,6 +103,9 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
             // for (size_t j = 0; j < set[victim_index].data.size(); ++j) {
             //     memory[mem_addr / 4 + j] = set[victim_index].data[j];
             // }
+            cache.stall_cycles = -1;
+            bus_busy_cycles+=100;
+            bus_queue.push({core, addr, is_write, true});
             cache.writeback_count++;
             global_stats.bus_data_traffic += cache.block_size;
             cache.idle_cycles += 100; // Writeback to memory
@@ -113,7 +118,7 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     bool shared = false;
     bool supplied = false;
     std::vector<uint32_t> data;
-    snoopBus(core, addr, is_write, shared, supplied, data); // -------------put in victim-addr, not addr
+    // snoopBus(core, addr, is_write, shared, supplied, data); // -------------put in victim-addr, not addr
 
     // Fetch block
     cache.miss_count++;

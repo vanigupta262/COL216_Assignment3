@@ -13,6 +13,11 @@ void parseAddress(uint32_t addr, uint32_t set_index_bits, uint32_t block_offset_
 }
 
 int findLRU(const std::vector<CacheLine>& set) {
+    for (size_t i = 0; i < set.size(); ++i) {
+        if (set[i].state == INVALID) {
+            return i;
+        }
+    }
     uint32_t max_lru = 0;
     int lru_index = 0;
     for (size_t i = 0; i < set.size(); ++i) {
@@ -54,7 +59,7 @@ void processReference(int core, char op, uint32_t addr) {
         cache.idle_cycles += 1;
         if (is_write) {
             if (set[hit_index].state == SHARED) {
-                bus_queue.push({core, addr, true});
+                bus_queue.push({core, addr, true, false});
                 cache.stall_cycles = -1;
             } else {
                 set[hit_index].dirty = true;
@@ -63,7 +68,7 @@ void processReference(int core, char op, uint32_t addr) {
         }
         updateLRU(set, hit_index);
     } else {
-        bus_queue.push({core, addr, is_write});
+        bus_queue.push({core, addr, is_write, false});
         cache.stall_cycles = -1;
     }
 }

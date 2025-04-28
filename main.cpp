@@ -23,6 +23,9 @@ void simulate(const std::vector<std::vector<std::pair<char, uint32_t>>>& traces)
         if (bus_busy_cycles == 0 && !bus_queue.empty()) {
             BusRequest req = bus_queue.front();
             bus_queue.pop();
+            // Special handling: if it is a writeback eviction request
+        
+
             
             bool shared = false;
             bool supplied = false;
@@ -41,9 +44,26 @@ void simulate(const std::vector<std::vector<std::pair<char, uint32_t>>>& traces)
                     break;
                 }
             }
+
+            if (req.iswriteback && !supplied && caches[req.core].stall_cycles == -1) {
+                caches[req.core].stall_cycles = 0;
+                continue;
+            }
             if (!hit) handleMiss(req.core, req.addr, req.is_write, set_index, tag);
             
-            bus_busy_cycles = supplied ? 2 * (caches[0].block_size/4) : 100;
+
+            // bus_busy_cycles = supplied ? 2 * (caches[0].block_size/4) : 100;
+            if (req.is_write && !supplied) {
+                // Invalidate request: no bus delay
+                bus_busy_cycles = 0;
+            } else if (supplied) {
+                // Cache-to-cache transfer
+                bus_busy_cycles = 2 * (caches[0].block_size / 4);
+            } else {
+                // Memory access
+                bus_busy_cycles = 100;
+            }
+            
             current_initiator = req.core;
             caches[req.core].stall_cycles = 0;
         }
