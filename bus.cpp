@@ -14,7 +14,7 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
 
     if (mem_addr / 4 + caches[0].block_size / 4 > memory.size()) {
         // std::err << "Error: Memory access out of bounds at address 0x" << std::hex << mem_addr << " (snoopBus)\n";
-        std::exit(1);
+        // std::exit(1);
     }
 
     supplied = false;
@@ -31,9 +31,9 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
                     // Write: Invalidate other copies
                     if (line.state == MODIFIED) {
                         // Write back to memory
-                        for (size_t j = 0; j < line.data.size(); ++j) {
-                            memory[mem_addr / 4 + j] = line.data[j];
-                        }
+                        // for (size_t j = 0; j < line.data.size(); ++j) {
+                        //     memory[mem_addr / 4 + j] = line.data[j];
+                        // }
                         global_stats.bus_data_traffic += cache.block_size;
                         cache.idle_cycles += 100; // Writeback to memory
                         line.dirty = false; // Reset dirty bit after writeback
@@ -49,9 +49,9 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
                         data = line.data;
                         supplied = true;
                         // Write back to memory
-                        for (size_t j = 0; j < line.data.size(); ++j) {
-                            memory[mem_addr / 4 + j] = line.data[j];
-                        }
+                        // for (size_t j = 0; j < line.data.size(); ++j) {
+                        //     memory[mem_addr / 4 + j] = line.data[j];
+                        // }
                         global_stats.bus_data_traffic += cache.block_size;
                         cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
                         line.state = SHARED;
@@ -86,7 +86,7 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
 
     if (mem_addr / 4 + cache.block_size / 4 > memory.size()) {
         // std::cerr << "Error: Memory access out of bounds at address 0x" << std::hex << mem_addr << " (handleMiss)\n";
-        std::exit(1);
+        // std::exit(1);
     }
 
     // Evict if necessary
@@ -94,9 +94,9 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
         cache.eviction_count++;
         if (set[victim_index].dirty && set[victim_index].state == MODIFIED) {
             // Write back to memory
-            for (size_t j = 0; j < set[victim_index].data.size(); ++j) {
-                memory[mem_addr / 4 + j] = set[victim_index].data[j];
-            }
+            // for (size_t j = 0; j < set[victim_index].data.size(); ++j) {
+            //     memory[mem_addr / 4 + j] = set[victim_index].data[j];
+            // }
             cache.writeback_count++;
             global_stats.bus_data_traffic += cache.block_size;
             cache.idle_cycles += 100; // Writeback to memory

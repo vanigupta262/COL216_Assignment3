@@ -7,7 +7,7 @@
 #include <iomanip>
 #include "cache.hpp"
 #include "bus.hpp"
-
+using namespace std;
 // Global variables
 std::vector<Cache> caches(4); // Four cores
 Stats global_stats;
@@ -122,14 +122,14 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Invalid trace entry in " << filename << ": " << line << "\n";
                 return 1;
             }
-            std::cout << "Core " << i << ": op=" << op << ", addr=0x" << std::hex << addr << "\n";
+            // std::cout << "Core " << i << ": op=" << op << ", addr=0x" << std::hex << addr << "\n";
             traces[i].emplace_back(op, addr);
         }
     }
-
+    cout << "Trace files loaded successfully.\n";
     // Run simulation
     simulate(traces);
-
+    cout << "Simulation completed.\n";
     // Write output
     std::ofstream outfile(outfilename);
     for (int i = 0; i < 4; ++i) {
