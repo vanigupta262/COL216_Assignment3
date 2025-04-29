@@ -10,8 +10,7 @@ struct CacheLine {
     MESIState state;
     uint32_t tag;
     uint32_t lru_counter;
-    std::vector<uint32_t> data;
-    CacheLine() : state(INVALID), tag(0), lru_counter(0), data() {}
+    CacheLine() : state(INVALID), tag(0), lru_counter(0) {}
 };
 
 struct Cache {
@@ -36,9 +35,6 @@ struct Stats {
     uint64_t invalidations = 0;
     uint64_t bus_data_traffic = 0;
 };
-
-// Simulated main memory (simplified)
-extern std::vector<uint32_t> memory;
 
 // Parse memory address
 void parseAddress(uint32_t addr, uint32_t set_index_bits, uint32_t block_offset_bits,

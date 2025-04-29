@@ -6,6 +6,7 @@ Idle cycles: 300
 Miss rate: 100%
 Evictions: 2
 Writebacks: 0
+
 Core 1:
 Reads: 0
 Writes: 0
@@ -14,6 +15,7 @@ Idle cycles: 0
 Miss rate: nan%
 Evictions: 0
 Writebacks: 0
+
 Core 2:
 Reads: 0
 Writes: 0
@@ -22,6 +24,7 @@ Idle cycles: 0
 Miss rate: nan%
 Evictions: 0
 Writebacks: 0
+
 Core 3:
 Reads: 0
 Writes: 0
@@ -30,5 +33,6 @@ Idle cycles: 0
 Miss rate: nan%
 Evictions: 0
 Writebacks: 0
+
 Bus invalidations: 0
 Bus data traffic (bytes): 48

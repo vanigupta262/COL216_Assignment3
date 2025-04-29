@@ -61,8 +61,7 @@ void simulate() {
 
             bool shared = hit ? true : false; //if a hit, it must be write hit at SHARED to be in the bus.
             bool supplied = false;
-            std::vector<uint32_t> data;
-            snoopBus(req.core, req.addr, req.is_write, shared, supplied, data);
+            snoopBus(req.core, req.addr, req.is_write, shared, supplied);
             
             caches[req.core].stall_cycles = 0;
 
@@ -162,7 +161,7 @@ int main(int argc, char* argv[]) {
         outfile << "Idle cycles: " << caches[i].idle_cycles << "\n";
         outfile << "Miss rate: " << (double)caches[i].miss_count / (caches[i].read_count + caches[i].write_count) * 100 << "%\n";
         outfile << "Evictions: " << caches[i].eviction_count << "\n";
-        outfile << "Writebacks: " << caches[i].writeback_count << "\n";
+        outfile << "Writebacks: " << caches[i].writeback_count << "\n\n";
     }
     outfile << "Bus invalidations: " << global_stats.invalidations << "\n";
     outfile << "Bus data traffic (bytes): " << global_stats.bus_data_traffic << "\n";
