@@ -50,11 +50,9 @@ void simulate() {
             parseAddress(req.addr, caches[req.core].set_index_bits, caches[req.core].block_offset_bits, tag, set_index, block_offset);
             auto& set = caches[req.core].sets[set_index];
             bool hit = false;
-            int hit_index = -1;
             for (size_t i = 0; i < set.size(); ++i) {
                 if (set[i].state != INVALID && set[i].tag == tag) {
                     hit = true;
-                    hit_index = i;
                     break;
                 }
             }

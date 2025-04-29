@@ -26,7 +26,7 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
                         // Write back to memory
                         global_stats.bus_data_traffic += cache.block_size;
                         bus_busy_cycles+=100;
-                        cache.stall_cycles = 100-1;
+                        cache.stall_cycles += 100-1;
                         cache.idle_cycles += 100;
                         cache.writeback_count++;
                     }
@@ -43,14 +43,19 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
                     if (line.state == MODIFIED) {
                         //data gets copied to target cache
                         cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
+                        cache.stall_cycles += 2 * (cache.block_size / 4)-1; //cache is kept busy in sending data
                         bus_busy_cycles+=100;
+                        cache.stall_cycles += 100;
                         global_stats.bus_data_traffic += cache.block_size;
                         line.state = SHARED;
                         supplied = true;
                         shared = true;
                     } else {
                         //data gets copied to target cache
-                        if (!shared) cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
+                        if (!shared) {
+                            cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
+                            cache.stall_cycles += 2 * (cache.block_size / 4)-1; //cache is kept busy in sending data
+                        }
                         global_stats.bus_data_traffic += cache.block_size;
                         line.state = SHARED;
                         supplied = true;
@@ -67,7 +72,6 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     Cache& cache = caches[core];
     auto& set = cache.sets[set_index];
     int victim_index = findLRU(set);
-    uint32_t mem_addr = (addr >> cache.block_offset_bits) << cache.block_offset_bits;
 
     // Evict if necessary
     if (set[victim_index].state == MODIFIED || set[victim_index].state == EXCLUSIVE) {
