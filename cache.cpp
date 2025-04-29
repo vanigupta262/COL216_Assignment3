@@ -57,12 +57,11 @@ void processReference(int core, char op, uint32_t addr) {
 
     if (hit) {
         cache.idle_cycles += 1;
-        if (is_write) {
+        if (is_write) { //bus gets request only for misses or write hits at S
             if (set[hit_index].state == SHARED) {
-                bus_queue.push({core, addr, true, false});
+                bus_queue.push({core, addr, true, false}); //to invalidate all others
                 cache.stall_cycles = -1;
             } else {
-                set[hit_index].dirty = true;
                 set[hit_index].state = MODIFIED;
             }
         }

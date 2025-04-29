@@ -12,26 +12,40 @@ using namespace std;
 std::vector<Cache> caches(4); // Four cores
 Stats global_stats;
 uint32_t current_cycle = 0;
+std::vector<std::vector<std::pair<char, uint32_t>>> traces(4);
 
 // Main simulation loop
-void simulate(const std::vector<std::vector<std::pair<char, uint32_t>>>& traces) {
+void simulate() {
     std::vector<size_t> trace_indices(4, 0);
     bool all_done;
     
     while (true) {
+        // Process cores
+        all_done = true;
+        for (int core = 0; core < 4; ++core) {
+            if (trace_indices[core] < traces[core].size()) {
+                all_done = false;
+                if (caches[core].stall_cycles == 0) {
+                    processReference(core, traces[core][trace_indices[core]].first,
+                        traces[core][trace_indices[core]].second);
+                    trace_indices[core]++;
+                } else if (caches[core].stall_cycles > 0) { // the core is in undergoing a bus command.
+                    caches[core].stall_cycles--;
+                }
+            }
+        }
+        if(!bus_queue.empty() || bus_busy_cycles>0){
+            all_done = false;
+        }
+        
+        if (all_done) break;
+        
         // Process bus transactions first
         if (bus_busy_cycles == 0 && !bus_queue.empty()) {
             BusRequest req = bus_queue.front();
             bus_queue.pop();
             // Special handling: if it is a writeback eviction request
-        
-
-            
-            bool shared = false;
-            bool supplied = false;
-            std::vector<uint32_t> data;
-            snoopBus(req.core, req.addr, req.is_write, shared, supplied, data);
-            
+                    
             uint32_t tag, set_index, block_offset;
             parseAddress(req.addr, caches[req.core].set_index_bits, caches[req.core].block_offset_bits, tag, set_index, block_offset);
             auto& set = caches[req.core].sets[set_index];
@@ -45,49 +59,34 @@ void simulate(const std::vector<std::vector<std::pair<char, uint32_t>>>& traces)
                 }
             }
 
-            if (req.iswriteback && !supplied && caches[req.core].stall_cycles == -1) {
-                caches[req.core].stall_cycles = 0;
-                continue;
-            }
-            if (!hit) handleMiss(req.core, req.addr, req.is_write, set_index, tag);
+            bool shared = hit ? true : false; //if a hit, it must be write hit at SHARED to be in the bus.
+            bool supplied = false;
+            std::vector<uint32_t> data;
+            snoopBus(req.core, req.addr, req.is_write, shared, supplied, data);
             
+            caches[req.core].stall_cycles = 0;
+
+            if (!hit) handleMiss(req.core, req.addr, req.is_write, set_index, tag);
 
             // bus_busy_cycles = supplied ? 2 * (caches[0].block_size/4) : 100;
-            if (req.is_write && !supplied) {
-                // Invalidate request: no bus delay
-                bus_busy_cycles = 0;
-            } else if (supplied) {
+            if (hit) { //If a write hit at SHARED then takes one cycle to invalidate (1 for hit)
+                bus_busy_cycles = 1;
+            } else if (supplied) { //if miss which gets data from cache, then 2N
                 // Cache-to-cache transfer
-                bus_busy_cycles = 2 * (caches[0].block_size / 4);
-            } else {
+                caches[req.core].stall_cycles += 2*(caches[0].block_size/4) - 1; //-1 because in this very cycle, it will start getting executed, so this cycle counts too
+                bus_busy_cycles = 2 * (caches[0].block_size / 4); //For bus, we will subtract 1 before the end of this cycle (below), so we don't need to do -1 here
+            } else { //miss with memory transfer, then 100
                 // Memory access
+                caches[req.core].stall_cycles += 100-1;
                 bus_busy_cycles = 100;
             }
             
             current_initiator = req.core;
-            caches[req.core].stall_cycles = 0;
         }
         
         // Advance cycles
-        if (bus_busy_cycles > 0) bus_busy_cycles--;
         current_cycle++;
-        
-        // Process cores
-        all_done = true;
-        for (int core = 0; core < 4; ++core) {
-            if (trace_indices[core] < traces[core].size()) {
-                all_done = false;
-                if (caches[core].stall_cycles == 0) {
-                    processReference(core, traces[core][trace_indices[core]].first,
-                        traces[core][trace_indices[core]].second);
-                        trace_indices[core]++;
-                    }
-                }
-            }
-            if(!bus_queue.empty()){
-                all_done = false;
-            }
-        if (all_done) break;
+        if (bus_busy_cycles > 0) bus_busy_cycles--;
         
     }
     
@@ -128,7 +127,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Read trace files
-    std::vector<std::vector<std::pair<char, uint32_t>>> traces(4);
+    
     for (int i = 0; i < 4; ++i) {
         std::string filename = trace_name + "_proc" + std::to_string(i) + ".trace";
         std::ifstream file(filename);
@@ -151,7 +150,7 @@ int main(int argc, char* argv[]) {
     }
     cout << "Trace files loaded successfully.\n";
     // Run simulation
-    simulate(traces);
+    simulate();
     cout << "Simulation completed.\n";
     // Write output
     std::ofstream outfile(outfilename);

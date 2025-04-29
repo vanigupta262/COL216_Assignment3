@@ -12,13 +12,7 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
     parseAddress(addr, caches[0].set_index_bits, caches[0].block_offset_bits, tag, set_index, block_offset);
     uint32_t mem_addr = (addr >> caches[0].block_offset_bits) << caches[0].block_offset_bits;
 
-    if (mem_addr / 4 + caches[0].block_size / 4 > memory.size()) {
-        // std::err << "Error: Memory access out of bounds at address 0x" << std::hex << mem_addr << " (snoopBus)\n";
-        // std::exit(1);
-    }
-
     supplied = false;
-    data.clear();
 
     for (int i = 0; i < 4; ++i) {
         if (i == initiator_core) continue;
@@ -28,6 +22,7 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
         for (auto& line : set) {
             if (line.state != INVALID && line.tag == tag) {
                 if (is_write) {
+                    // comes from write hit at SHARED, or write miss
                     // Write: Invalidate other copies
                     if (line.state == MODIFIED) {
                         // Write back to memory
@@ -39,39 +34,31 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bo
                         bus_busy_cycles+=100;
                         // bus_queue.push({initiator_core, addr, is_write, true});
                         cache.idle_cycles += 100; // Writeback to memory
-                        line.dirty = false; // Reset dirty bit after writeback
+                        cache.writeback_count++;
                     }
-                    if (!shared) cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
+                    if (!shared) {supplied = true; shared = true; cache.idle_cycles += 2 * (cache.block_size / 4);} // Send block
                     line.state = INVALID;
                     global_stats.invalidations++;
-                    cache.writeback_count++;
                 } else {
+                    // comes from read miss
                     // Read: Supply data if MODIFIED, update states
                     if (line.state == MODIFIED) {
-                        // Supply data
-                        data = line.data;
+                        //data gets copied to target cache
                         supplied = true;
-                        // Write back to memory
-                        // for (size_t j = 0; j < line.data.size(); ++j) {
-                        //     memory[mem_addr / 4 + j] = line.data[j];
-                        // }
-                        // cache.stall_cycles = -1;
                         bus_busy_cycles+=100;
-                        // bus_queue.push({initiator_core, addr, is_write, true});
                         global_stats.bus_data_traffic += cache.block_size;
                         cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
                         line.state = SHARED;
-                        line.dirty = false;
                         shared = true;
                     } else if (line.state == EXCLUSIVE) {
+                        //data gets copied to target cache
                         line.state = SHARED;
-                        data = line.data;
                         supplied = true;
                         global_stats.bus_data_traffic += cache.block_size;
                         cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
                         shared = true;
                     } else if (line.state == SHARED) {
-                        data = line.data;
+                        //data gets copied to target cache
                         supplied = true;
                         global_stats.bus_data_traffic += cache.block_size;
                         if (!shared) cache.idle_cycles += 2 * (cache.block_size / 4); // Send block
@@ -90,20 +77,15 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     int victim_index = findLRU(set);
     uint32_t mem_addr = (addr >> cache.block_offset_bits) << cache.block_offset_bits;
 
-    if (mem_addr / 4 + cache.block_size / 4 > memory.size()) {
-        // std::cerr << "Error: Memory access out of bounds at address 0x" << std::hex << mem_addr << " (handleMiss)\n";
-        // std::exit(1);
-    }
-
     // Evict if necessary
     if (set[victim_index].state == MODIFIED || set[victim_index].state == EXCLUSIVE) {
         cache.eviction_count++;
-        if (set[victim_index].dirty && set[victim_index].state == MODIFIED) {
+        if (set[victim_index].state == MODIFIED) {
             // Write back to memory
             // for (size_t j = 0; j < set[victim_index].data.size(); ++j) {
             //     memory[mem_addr / 4 + j] = set[victim_index].data[j];
             // }
-            cache.stall_cycles = -1;
+            cache.stall_cycles = 100; //change it to a countdown for cycles the core stays occupied for
             bus_busy_cycles+=100;
             bus_queue.push({core, addr, is_write, true});
             cache.writeback_count++;
@@ -118,12 +100,11 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     bool shared = false;
     bool supplied = false;
     std::vector<uint32_t> data;
-    // snoopBus(core, addr, is_write, shared, supplied, data); // -------------put in victim-addr, not addr
+    snoopBus(core, addr, is_write, shared, supplied, data);
 
     // Fetch block
     cache.miss_count++;
     set[victim_index].tag = tag;
-    set[victim_index].dirty = is_write;
     if (shared) {
         // Data supplied by another cache
         set[victim_index].data = data;

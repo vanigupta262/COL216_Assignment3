@@ -9,10 +9,9 @@ enum MESIState { INVALID, SHARED, EXCLUSIVE, MODIFIED };
 struct CacheLine {
     MESIState state;
     uint32_t tag;
-    bool dirty;
     uint32_t lru_counter;
     std::vector<uint32_t> data;
-    CacheLine() : state(INVALID), tag(0), dirty(false), lru_counter(0), data() {}
+    CacheLine() : state(INVALID), tag(0), lru_counter(0), data() {}
 };
 
 struct Cache {
