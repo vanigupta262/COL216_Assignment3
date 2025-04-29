@@ -1,0 +1,42 @@
+Core 0:
+Reads: 1489888
+Writes: 1007461
+Total cycles: 13228412
+Idle cycles: 6698852
+Misses: 35558
+Miss rate: 1.42383%
+Evictions: 35374
+Writebacks: 6999
+
+Core 1:
+Reads: 1485857
+Writes: 1004611
+Total cycles: 13228412
+Idle cycles: 6374563
+Misses: 35017
+Miss rate: 1.40604%
+Evictions: 34829
+Writebacks: 6639
+
+Core 2:
+Reads: 1492629
+Writes: 1016428
+Total cycles: 13228412
+Idle cycles: 7096094
+Misses: 40538
+Miss rate: 1.61567%
+Evictions: 40328
+Writebacks: 10137
+
+Core 3:
+Reads: 1493736
+Writes: 1009391
+Total cycles: 13228412
+Idle cycles: 6305925
+Misses: 35714
+Miss rate: 1.42678%
+Evictions: 35538
+Writebacks: 6850
+
+Bus invalidations: 246
+Bus data traffic (bytes): 8773344

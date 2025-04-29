@@ -27,6 +27,10 @@ struct Cache {
     uint64_t eviction_count = 0;
     uint64_t writeback_count = 0;
     uint64_t idle_cycles = 0;
+    uint64_t invalidation_count = 0; // Track invalidations per cache
+    uint64_t hit_cycles = 0;     // Cycles spent on cache hits (1 cycle each)
+    uint64_t memory_cycles = 0;  // Cycles spent on memory accesses
+    uint64_t data_traffic = 0;   // Data traffic in bytes for this core
     int stall_cycles = 0; // New field
 };
 
