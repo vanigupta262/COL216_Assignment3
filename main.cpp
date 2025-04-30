@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
                 if (caches[core].sets[i][j].state == MODIFIED) {
                     caches[core].memory_cycles += 100;
                     global_stats.total_cycles += 100;
-                    std::cout << core << " " << i << " " << j << "\n";
+                    // std::cout << core << " " << i << " " << j << "\n";
                 }
             }
         }
