@@ -115,6 +115,7 @@ void simulate()
         {
             BusRequest req = bus_queue.front();
             bus_queue.pop();
+            bus_transactions++;
             // Special handling: if it is a writeback eviction request
 
             uint32_t tag, set_index, block_offset;
@@ -282,7 +283,7 @@ int main(int argc, char *argv[])
 
     // Print overall bus summary
     outfile << "Overall Bus Summary:\n";
-    outfile << "Total Bus Transactions: " << global_stats.invalidations + global_stats.bus_data_traffic / caches[0].block_size << "\n";
+    outfile << "Total Bus Transactions: " << bus_transactions << "\n";
     outfile << "Total Bus Traffic (Bytes): " << global_stats.bus_data_traffic << "\n";
     outfile << "Maximum Execution Time (cycles): " << global_stats.total_cycles << "\n";
 

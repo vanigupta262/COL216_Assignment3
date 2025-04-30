@@ -1,11 +1,11 @@
 Simulation Parameters:
 Trace Prefix: test1
-Set Index Bits: 6
+Set Index Bits: 8
 Associativity: 2
 Block Bits: 5
 Block Size (Bytes): 32
-Number of Sets: 64
-Cache Size (KB per core): 4.00
+Number of Sets: 256
+Cache Size (KB per core): 16.00
 MESI Protocol: Enabled
 Write Policy: Write-back, Write-allocate
 Replacement Policy: LRU
@@ -64,6 +64,6 @@ Bus Invalidations: 1
 Data Traffic (Bytes): 192
 
 Overall Bus Summary:
-Total Bus Transactions: 9
+Total Bus Transactions: 23
 Total Bus Traffic (Bytes): 608
 Maximum Execution Time (cycles): 382

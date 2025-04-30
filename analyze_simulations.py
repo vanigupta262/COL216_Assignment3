@@ -1,149 +1,289 @@
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import os
+import subprocess
 import re
-from collections import defaultdict
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+import numpy as np
 
-def parse_simulation_output(filename):
-    """Parse a simulation output file and extract relevant metrics."""
-    with open(filename, 'r') as f:
-        lines = f.readlines()
-    
-    # Extract cache parameters
-    params = {}
-    for line in lines:
-        if "Set Index Bits" in line:
-            params["set_bits"] = int(line.split()[3])
-        elif "Associativity" in line:
-            params["associativity"] = int(line.split()[2])
-        elif "Block Bits" in line:
-            params["block_bits"] = int(line.split()[3])
-        elif "Cache Size" in line:
-            params["cache_size"] = float(line.split()[6])
-            
-    # Extract core statistics
-    core_stats = []
-    core_lines = []
-    for i in range(4):
-        core = f"Core {i} Statistics:"
-        stats = {}
-        for line in lines:
-            if line.startswith(core):
-                core_lines = line.split()
-                stats["instructions"] = int(core_lines[3])
-                stats["reads"] = int(core_lines[6])
-                stats["writes"] = int(core_lines[9])
-                stats["execution_cycles"] = int(core_lines[12])
-                stats["idle_cycles"] = int(core_lines[15])
-                stats["cache_misses"] = int(core_lines[18])
-                stats["miss_rate"] = float(core_lines[21])
-                stats["bus_invalidations"] = int(core_lines[26])
-                stats["data_traffic"] = int(core_lines[30])
-                break
-        core_stats.append(stats)
-    
-    # Extract overall bus statistics
-    bus_stats = {}
-    for line in lines:
-        if "Total Bus Transactions" in line:
-            bus_stats["transactions"] = int(line.split()[4])
-        elif "Total Bus Traffic" in line:
-            bus_stats["traffic"] = int(line.split()[5])
-        elif "Maximum Execution Time" in line:
-            bus_stats["max_exec_time"] = int(line.split()[5])
-    
-    return params, core_stats, bus_stats
+# Configuration
+EXECUTABLE = "./L1simulate"  # Path to the simulator executable
+TRACE_PREFIX = "test1"        # Trace file prefix
+RESULTS_FILE = "cache_sim_results.csv"
+PLOT_DIR = "plots"            # Directory to save plots
 
-def run_multiple_simulations(test_prefix, num_runs=10):
-    """Run simulator multiple times and collect statistics."""
-    all_stats = []
-    
-    for i in range(num_runs):
-        output_file = f"{test_prefix}_run{i}.txt"
-        os.system(f"./L1simulate -t {test_prefix} -s 6 -E 2 -b 5 -o {output_file}")
-        params, core_stats, bus_stats = parse_simulation_output(output_file)
-        all_stats.append({
-            "params": params,
-            "core_stats": core_stats,
-            "bus_stats": bus_stats
-        })
-    
-    return all_stats
+# Parameter values for independent variations
+CACHE_SIZES = [4, 8, 16]      # Cache sizes in KB
+ASSOCIATIVITIES = [2, 4, 8]   # Associativity values
+BLOCK_SIZES = [32, 64, 128]   # Block sizes in bytes
 
-def analyze_parameter_variation(test_prefix, param_name, param_values):
-    """Run simulations with varying parameter values and collect results."""
-    results = []
+# Default parameters
+DEFAULT_CACHE_SIZE = 4
+DEFAULT_ASSOCIATIVITY = 2
+DEFAULT_BLOCK_SIZE = 32
+
+# Ensure plot directory exists
+if not os.path.exists(PLOT_DIR):
+    os.makedirs(PLOT_DIR)
+
+# Function to run the simulator and extract max execution time
+def run_simulation(param, value, cache_size, associativity, block_size):
+    cmd = [EXECUTABLE, "-t", TRACE_PREFIX, "-s", str(int(np.log2(cache_size * 1024 / (associativity * block_size)))),
+           "-E", str(associativity), "-b", str(int(np.log2(block_size))), "-o", f"{param}_{value}.txt"]
     
-    for value in param_values:
-        output_file = f"{test_prefix}_{param_name}_{value}.txt"
-        if param_name == "cache_size":
-            os.system(f"./L1simulate -t {test_prefix} -s 6 -E 2 -b 5 -o {output_file} -c {value}")
-        elif param_name == "associativity":
-            os.system(f"./L1simulate -t {test_prefix} -s 6 -E {value} -b 5 -o {output_file}")
-        elif param_name == "block_size":
-            os.system(f"./L1simulate -t {test_prefix} -s 6 -E 2 -b {value} -o {output_file}")
+    print(f"Running simulation with {param}={value} (CacheSize={cache_size}KB, E={associativity}, BlockSize={block_size}B)...")
+    
+    try:
+        # Run the simulator and capture output
+        subprocess.run(cmd, check=True)
         
-        _, _, bus_stats = parse_simulation_output(output_file)
-        results.append({
-            "param_value": value,
-            "max_exec_time": bus_stats["max_exec_time"]
-        })
+        # Parse the output file
+        with open(f"{param}_{value}.txt", 'r') as f:
+            output = f.read()
+            
+        # Extract max execution time
+        match = re.search(r"Maximum Execution Time \(cycles\): (\d+)", output)
+        if not match:
+            print(f"Error: Could not extract MaxExecutionTime for {param}={value}.")
+            return None
+        max_time = int(match.group(1))
+        
+        return {
+            "Parameter": param,
+            "Value": value,
+            "MaxExecutionTime": max_time,
+            "CacheSize": cache_size,
+            "Associativity": associativity,
+            "BlockSize": block_size
+        }
     
-    return results
+    except subprocess.CalledProcessError as e:
+        print(f"Error: Simulation failed for {param}={value}. Error: {e}")
+        return None
+    except Exception as e:
+        print(f"Error: Unexpected error for {param}={value}. Error: {e}")
+        return None
 
-def plot_parameter_variation(results, param_name):
-    """Plot maximum execution time vs. parameter value."""
-    values = [r["param_value"] for r in results]
-    exec_times = [r["max_exec_time"] for r in results]
-    
-    plt.figure(figsize=(10, 6))
-    plt.plot(values, exec_times, marker='o')
-    plt.xlabel(f"{param_name}")
-    plt.ylabel("Maximum Execution Time (cycles)")
-    plt.title(f"Maximum Execution Time vs. {param_name}")
-    plt.grid(True)
-    plt.savefig(f"{param_name}_variation.pdf")
-    plt.close()
+# Check if trace files exist
+for i in range(4):
+    trace_file = f"{TRACE_PREFIX}_proc{i}.trace"
+    if not os.path.exists(trace_file):
+        print(f"Error: Trace file {trace_file} not found.")
+        exit(1)
 
-def main():
-    # Run multiple simulations for default parameters
-    print("Running multiple simulations with default parameters...")
-    default_stats = run_multiple_simulations("test1")
-    
-    # Analyze parameter variations
-    print("Analyzing parameter variations...")
-    
-    # Cache size variation (4KB, 8KB, 16KB)
-    cache_sizes = [4, 8, 16]
-    cache_size_results = analyze_parameter_variation("test1", "cache_size", cache_sizes)
-    plot_parameter_variation(cache_size_results, "Cache Size")
-    
-    # Associativity variation (2, 4, 8)
-    associativities = [2, 4, 8]
-    assoc_results = analyze_parameter_variation("test1", "associativity", associativities)
-    plot_parameter_variation(assoc_results, "Associativity")
-    
-    # Block size variation (32B, 64B, 128B)
-    block_sizes = [32, 64, 128]
-    block_size_results = analyze_parameter_variation("test1", "block_size", block_sizes)
-    plot_parameter_variation(block_size_results, "Block Size")
-    
-    # Generate statistics for default parameters
-    print("\nStatistics for default parameters (10 runs):")
-    
-    # Core statistics
-    for core in range(4):
-        print(f"\nCore {core} Statistics:")
-        for metric in ["miss_rate", "bus_invalidations", "data_traffic"]:
-            values = [stats["core_stats"][core][metric] for stats in default_stats]
-            print(f"{metric}: Mean={np.mean(values):.2f}, Std Dev={np.std(values):.2f}")
-    
-    # Bus statistics
-    print("\nBus Statistics:")
-    for metric in ["transactions", "traffic", "max_exec_time"]:
-        values = [stats["bus_stats"][metric] for stats in default_stats]
-        print(f"{metric}: Mean={np.mean(values):.2f}, Std Dev={np.std(values):.2f}")
+# Check if executable exists
+if not os.path.exists(EXECUTABLE):
+    print(f"Error: Simulator executable {EXECUTABLE} not found.")
+    exit(1)
+
+# Collect results
+results = []
+
+# Vary cache size
+for size in CACHE_SIZES:
+    result = run_simulation("CacheSize", size, size, DEFAULT_ASSOCIATIVITY, DEFAULT_BLOCK_SIZE)
+    if result:
+        results.append(result)
+
+# Vary associativity
+for assoc in ASSOCIATIVITIES:
+    result = run_simulation("Associativity", assoc, DEFAULT_CACHE_SIZE, assoc, DEFAULT_BLOCK_SIZE)
+    if result:
+        results.append(result)
+
+# Vary block size
+for block in BLOCK_SIZES:
+    result = run_simulation("BlockSize", block, DEFAULT_CACHE_SIZE, DEFAULT_ASSOCIATIVITY, block)
+    if result:
+        results.append(result)
+
+# Save results to CSV
+if results:
+    df = pd.DataFrame(results)
+    df.to_csv(RESULTS_FILE, index=False)
+    print(f"Results saved to {RESULTS_FILE}")
+else:
+    print("No results to save. Exiting.")
+    exit(1)
+
+# Plotting
+# Split data by parameter
+cache_size_data = df[df['Parameter'] == 'CacheSize']
+associativity_data = df[df['Parameter'] == 'Associativity']
+block_size_data = df[df['Parameter'] == 'BlockSize']
+
+# Plot 1: Maximum Execution Time vs. Cache Size
+plt.figure(figsize=(8, 6))
+plt.plot(cache_size_data['Value'], cache_size_data['MaxExecutionTime'], marker='o', label='Cache Size')
+plt.xlabel('Cache Size (KB)')
+plt.ylabel('Maximum Execution Time (cycles)')
+plt.title('Maximum Execution Time vs. Cache Size')
+plt.grid(True)
+plt.legend()
+plt.savefig(os.path.join(PLOT_DIR, 'cache_size_variation.png'))
+plt.close()
+
+# Plot 2: Maximum Execution Time vs. Associativity
+plt.figure(figsize=(8, 6))
+plt.plot(associativity_data['Value'], associativity_data['MaxExecutionTime'], marker='s', label='Associativity')
+plt.xlabel('Associativity')
+plt.ylabel('Maximum Execution Time (cycles)')
+plt.title('Maximum Execution Time vs. Associativity')
+plt.grid(True)
+plt.legend()
+plt.savefig(os.path.join(PLOT_DIR, 'associativity_variation.png'))
+plt.close()
+
+# Plot 3: Maximum Execution Time vs. Block Size
+plt.figure(figsize=(8, 6))
+plt.plot(block_size_data['Value'], block_size_data['MaxExecutionTime'], marker='^', label='Block Size')
+plt.xlabel('Block Size (bytes)')
+plt.ylabel('Maximum Execution Time (cycles)')
+plt.title('Maximum Execution Time vs. Block Size')
+plt.grid(True)
+plt.legend()
+plt.savefig(os.path.join(PLOT_DIR, 'block_size_variation.png'))
+plt.close()
+
+print(f"Plots saved in {PLOT_DIR}/: cache_size_variation.png, associativity_variation.png, block_size_variation.png")
 
 if __name__ == "__main__":
-    main()
+    # Configuration
+    EXECUTABLE = "./L1simulate"  # Path to the simulator executable
+    TRACE_PREFIX = "test1"        # Trace file prefix
+    RESULTS_FILE = "cache_sim_results.csv"
+    PLOT_DIR = "plots"            # Directory to save plots
+    
+    # Parameter values for independent variations
+    CACHE_SIZES = [4, 8, 16]      # Cache sizes in KB
+    ASSOCIATIVITIES = [2, 4, 8]   # Associativity values
+    BLOCK_SIZES = [32, 64, 128]   # Block sizes in bytes
+    
+    # Default parameters
+    DEFAULT_CACHE_SIZE = 4
+    DEFAULT_ASSOCIATIVITY = 2
+    DEFAULT_BLOCK_SIZE = 32
+    
+    # Ensure plot directory exists
+    if not os.path.exists(PLOT_DIR):
+        os.makedirs(PLOT_DIR)
+    
+    # Function to run the simulator and extract max execution time
+    def run_simulation(param, value, cache_size, associativity, block_size):
+        cmd = [EXECUTABLE, "-t", TRACE_PREFIX, "-s", str(int(np.log2(cache_size * 1024 / (associativity * block_size)))),
+               "-E", str(associativity), "-b", str(int(np.log2(block_size))), "-o", f"{param}_{value}.txt"]
+        
+        print(f"Running simulation with {param}={value} (CacheSize={cache_size}KB, E={associativity}, BlockSize={block_size}B)...")
+        
+        try:
+            # Run the simulator and capture output
+            subprocess.run(cmd, check=True)
+            
+            # Parse the output file
+            with open(f"{param}_{value}.txt", 'r') as f:
+                output = f.read()
+                
+            # Extract max execution time
+            match = re.search(r"Maximum Execution Time \(cycles\): (\d+)", output)
+            if not match:
+                print(f"Error: Could not extract MaxExecutionTime for {param}={value}.")
+                return None
+            max_time = int(match.group(1))
+            
+            return {
+                "Parameter": param,
+                "Value": value,
+                "MaxExecutionTime": max_time,
+                "CacheSize": cache_size,
+                "Associativity": associativity,
+                "BlockSize": block_size
+            }
+        
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Simulation failed for {param}={value}. Error: {e}")
+            return None
+        except Exception as e:
+            print(f"Error: Unexpected error for {param}={value}. Error: {e}")
+            return None
+    
+    # Check if trace files exist
+    for i in range(4):
+        trace_file = f"{TRACE_PREFIX}_proc{i}.trace"
+        if not os.path.exists(trace_file):
+            print(f"Error: Trace file {trace_file} not found.")
+            exit(1)
+    
+    # Check if executable exists
+    if not os.path.exists(EXECUTABLE):
+        print(f"Error: Simulator executable {EXECUTABLE} not found.")
+        exit(1)
+    
+    # Collect results
+    results = []
+    
+    # Vary cache size
+    for size in CACHE_SIZES:
+        result = run_simulation("CacheSize", size, size, DEFAULT_ASSOCIATIVITY, DEFAULT_BLOCK_SIZE)
+        if result:
+            results.append(result)
+    
+    # Vary associativity
+    for assoc in ASSOCIATIVITIES:
+        result = run_simulation("Associativity", assoc, DEFAULT_CACHE_SIZE, assoc, DEFAULT_BLOCK_SIZE)
+        if result:
+            results.append(result)
+    
+    # Vary block size
+    for block in BLOCK_SIZES:
+        result = run_simulation("BlockSize", block, DEFAULT_CACHE_SIZE, DEFAULT_ASSOCIATIVITY, block)
+        if result:
+            results.append(result)
+    
+    # Save results to CSV
+    if results:
+        df = pd.DataFrame(results)
+        df.to_csv(RESULTS_FILE, index=False)
+        print(f"Results saved to {RESULTS_FILE}")
+    else:
+        print("No results to save. Exiting.")
+        exit(1)
+    
+    # Plotting
+    # Split data by parameter
+    cache_size_data = df[df['Parameter'] == 'CacheSize']
+    associativity_data = df[df['Parameter'] == 'Associativity']
+    block_size_data = df[df['Parameter'] == 'BlockSize']
+    
+    # Plot 1: Maximum Execution Time vs. Cache Size
+    plt.figure(figsize=(8, 6))
+    plt.plot(cache_size_data['Value'], cache_size_data['MaxExecutionTime'], marker='o', label='Cache Size')
+    plt.xlabel('Cache Size (KB)')
+    plt.ylabel('Maximum Execution Time (cycles)')
+    plt.title('Maximum Execution Time vs. Cache Size')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(os.path.join(PLOT_DIR, 'cache_size_variation.png'))
+    plt.close()
+    
+    # Plot 2: Maximum Execution Time vs. Associativity
+    plt.figure(figsize=(8, 6))
+    plt.plot(associativity_data['Value'], associativity_data['MaxExecutionTime'], marker='s', label='Associativity')
+    plt.xlabel('Associativity')
+    plt.ylabel('Maximum Execution Time (cycles)')
+    plt.title('Maximum Execution Time vs. Associativity')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(os.path.join(PLOT_DIR, 'associativity_variation.png'))
+    plt.close()
+    
+    # Plot 3: Maximum Execution Time vs. Block Size
+    plt.figure(figsize=(8, 6))
+    plt.plot(block_size_data['Value'], block_size_data['MaxExecutionTime'], marker='^', label='Block Size')
+    plt.xlabel('Block Size (bytes)')
+    plt.ylabel('Maximum Execution Time (cycles)')
+    plt.title('Maximum Execution Time vs. Block Size')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(os.path.join(PLOT_DIR, 'block_size_variation.png'))
+    plt.close()
+    
+    print(f"Plots saved in {PLOT_DIR}/: cache_size_variation.png, associativity_variation.png, block_size_variation.png")

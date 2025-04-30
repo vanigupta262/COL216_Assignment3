@@ -4,10 +4,12 @@
 std::queue<BusRequest> bus_queue;
 int bus_busy_cycles = 0;
 int current_initiator = -1;
+int bus_transactions = 0;  // Global counter for bus transactions
 
 // Process snooping for other caches
 void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool &shared, bool &supplied)
 {
+    // bus_transactions++;  // Increment bus transactions counter
     uint32_t tag, set_index, block_offset;
     parseAddress(addr, caches[0].set_index_bits, caches[0].block_offset_bits, tag, set_index, block_offset);
 

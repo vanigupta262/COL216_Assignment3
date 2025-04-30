@@ -18,6 +18,7 @@ extern Stats global_stats;
 extern std::queue<BusRequest> bus_queue; 
 extern int bus_busy_cycles;
 extern int current_initiator;
+extern int bus_transactions;  // Global counter for bus transactions
 
 void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool& shared, bool& supplied);
 void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint32_t tag);
