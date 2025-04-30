@@ -111,9 +111,9 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
         if (set[victim_index].state == MODIFIED)
         {
             // Write back to memory
-            cache.stall_cycles = 100;
+            cache.stall_cycles += 100-1;
             bus_busy_cycles += 100;
-            bus_queue.push({core, addr, is_write, true});
+            // bus_queue.push({core, addr, is_write, true});
             cache.writeback_count++;
             global_stats.bus_data_traffic += cache.block_size;
             cache.data_traffic += cache.block_size;
@@ -127,7 +127,7 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     snoopBus(core, addr, is_write, shared, supplied);
 
     // Only proceed with miss handling if no writeback is pending
-    if (!writeback_pending)
+    if (true)
     {
         // Fetch block
         cache.miss_count++;

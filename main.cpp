@@ -252,7 +252,6 @@ int main(int argc, char *argv[])
 
     //---------------------------------- writing back M states
     for (int core=0 ; core<4 ; core++) {
-        Cache &cache = caches[core];
         for(uint32_t i=0 ; i < caches[core].assoc ; i++) {
             for (uint32_t j=0 ; j<caches[core].num_sets ; j++) {
                 if (caches[core].sets[i][j].state == MODIFIED) {

@@ -1,0 +1,69 @@
+Simulation Parameters:
+Trace Prefix: test3
+Set Index Bits: 6
+Associativity: 2
+Block Bits: 5
+Block Size (Bytes): 32
+Number of Sets: 64
+Cache Size (KB per core): 4.00
+MESI Protocol: Enabled
+Write Policy: Write-back, Write-allocate
+Replacement Policy: LRU
+Bus: Central snooping bus
+
+Core 0 Statistics:
+Total Instructions: 12
+Total Reads: 8
+Total Writes: 4
+Total Execution Cycles: 122
+Idle Cycles: 64
+Cache Misses: 2
+Cache Miss Rate: 16.66667%
+Cache Evictions: 0
+Writebacks: 0
+Bus Invalidations: 2
+Data Traffic (Bytes): 96
+
+Core 1 Statistics:
+Total Instructions: 11
+Total Reads: 7
+Total Writes: 4
+Total Execution Cycles: 336
+Idle Cycles: 136
+Cache Misses: 5
+Cache Miss Rate: 45.45455%
+Cache Evictions: 0
+Writebacks: 2
+Bus Invalidations: 3
+Data Traffic (Bytes): 256
+
+Core 2 Statistics:
+Total Instructions: 12
+Total Reads: 7
+Total Writes: 5
+Total Execution Cycles: 354
+Idle Cycles: 244
+Cache Misses: 6
+Cache Miss Rate: 50.00000%
+Cache Evictions: 0
+Writebacks: 2
+Bus Invalidations: 3
+Data Traffic (Bytes): 544
+
+Core 3 Statistics:
+Total Instructions: 12
+Total Reads: 7
+Total Writes: 5
+Total Execution Cycles: 253
+Idle Cycles: 353
+Cache Misses: 5
+Cache Miss Rate: 41.66667%
+Cache Evictions: 0
+Writebacks: 1
+Bus Invalidations: 3
+Data Traffic (Bytes): 576
+
+Overall Bus Summary:
+Total Bus Transactions: 62
+Total Bus Traffic (Bytes): 1472
+Maximum Execution Time (cycles): 1060
