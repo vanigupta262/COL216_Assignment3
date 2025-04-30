@@ -38,15 +38,20 @@ void snoopBus(int initiator_core, uint32_t addr, bool is_write, bool &shared, bo
                         caches[initiator_core].data_traffic += cache.block_size; // Track data traffic for initiator core
                         bus_busy_cycles += 100;
                         cache.stall_cycles += 100 - 1;
-                        // cache.idle_cycles += 100;
                         cache.writeback_count++;
+                        line.state = INVALID;
+                        global_stats.invalidations++;
+                        caused_invalidation = true;
+                    }
+                    else
+                    {
+                        line.state = INVALID;
+                        global_stats.invalidations++;
+                        caused_invalidation = true;
                     }
                     // For write misses, we don't do cache-to-cache transfers
                     // The initiating core will get the data from memory and modify it
                     // We just need to invalidate any copies in other caches
-                    line.state = INVALID;
-                    global_stats.invalidations++;
-                    caused_invalidation = true; // Mark that this transaction caused an invalidation
                 }
                 else
                 {
@@ -97,6 +102,7 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     Cache &cache = caches[core];
     auto &set = cache.sets[set_index];
     int victim_index = findLRU(set);
+    bool writeback_pending = false;
 
     // Evict if necessary
     if (set[victim_index].state != INVALID)
@@ -105,13 +111,13 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
         if (set[victim_index].state == MODIFIED)
         {
             // Write back to memory
-            cache.stall_cycles = 100; // change it to a countdown for cycles the core stays occupied for
+            cache.stall_cycles = 100;
             bus_busy_cycles += 100;
             bus_queue.push({core, addr, is_write, true});
             cache.writeback_count++;
             global_stats.bus_data_traffic += cache.block_size;
-            cache.data_traffic += cache.block_size; // Track data traffic for this core
-            // cache.idle_cycles += 100; // Writeback to memory
+            cache.data_traffic += cache.block_size;
+            writeback_pending = true;
         }
     }
 
@@ -120,24 +126,25 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     bool supplied = false;
     snoopBus(core, addr, is_write, shared, supplied);
 
-    // Fetch block
-    cache.miss_count++;
-    set[victim_index].tag = tag;
-    if (supplied)
+    // Only proceed with miss handling if no writeback is pending
+    if (!writeback_pending)
     {
-        // Data supplied by another cache
-        // cache.idle_cycles += 2 * (cache.block_size / 4);
-        cache.memory_cycles += 2 * (cache.block_size / 4); // Track cache-to-cache transfer cycles
+        // Fetch block
+        cache.miss_count++;
+        set[victim_index].tag = tag;
+        if (supplied)
+        {
+            // Data supplied by another cache
+            cache.memory_cycles += 2 * (cache.block_size / 4);
+        }
+        else
+        {
+            // Fetch from memory
+            global_stats.bus_data_traffic += cache.block_size;
+            cache.data_traffic += cache.block_size;
+            cache.memory_cycles += 100;
+        }
+        set[victim_index].state = is_write ? MODIFIED : (supplied ? SHARED : EXCLUSIVE);
+        updateLRU(set, victim_index);
     }
-    else
-    {
-        // Fetch from memory
-        global_stats.bus_data_traffic += cache.block_size;
-        cache.data_traffic += cache.block_size; // Track data traffic for this core
-        // cache.idle_cycles += 100; // Memory access
-        cache.memory_cycles += 100; // Track memory access cycles
-    }
-    set[victim_index].state = is_write ? MODIFIED : (supplied ? SHARED : EXCLUSIVE);
-
-    updateLRU(set, victim_index);
 }

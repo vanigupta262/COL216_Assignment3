@@ -91,7 +91,7 @@ void simulate()
                         // Bus is busy but core has a pending request that needs the bus
                         // Count as idle cycle and stall the core until bus is available
                         caches[core].idle_cycles++;
-                        caches[core].stall_cycles = 1; // Stall for at least one cycle, will be reset when bus becomes available
+                        // caches[core].stall_cycles = 1; // Stall for at least one cycle, will be reset when bus becomes available
                     }
                 }
                 else if (caches[core].stall_cycles > 0)
@@ -248,6 +248,26 @@ int main(int argc, char *argv[])
     simulate();
     cout << "Simulation completed.\n";
     // Write output
+    cout << "Simulation completed.\n";
+
+    //---------------------------------- writing back M states
+    for (int core=0 ; core<4 ; core++) {
+        Cache &cache = caches[core];
+        for(uint32_t i=0 ; i < caches[core].assoc ; i++) {
+            for (uint32_t j=0 ; j<caches[core].num_sets ; j++) {
+                if (caches[core].sets[i][j].state == MODIFIED) {
+                    caches[core].memory_cycles += 100;
+                    global_stats.total_cycles += 100;
+                    std::cout << core << " " << i << " " << j << "\n";
+                }
+            }
+        }
+    }
+    //----------------------------------
+
+
+    // Write output
+
     std::ofstream outfile(outfilename);
 
     // Print simulation parameters
