@@ -129,6 +129,7 @@ void handleMiss(int core, uint32_t addr, bool is_write, uint32_t set_index, uint
     // Only proceed with miss handling if no writeback is pending
     if (true)
     {
+        // writeback_pending = true;
         // Fetch block
         cache.miss_count++;
         set[victim_index].tag = tag;
